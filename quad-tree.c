@@ -25,25 +25,44 @@ struct quad_tree {
 	struct quad_tree* c2;
 	struct quad_tree* c3;
 	struct node* value;
-	int init_x;
-	int init_y;
-	int max_x; // width
-	int max_y; // length
+	int low_x;
+	int low_y;
+	int high_x; // half of width
+	int high_y; // length
 	int size;
-	float cent_M;
+	float cent_M; // center of mass at 
 };
 
-struct quad_tree* init_quadTree(int x, int y) {
+// width and length should be the same thing
+
+/*struct quad_tree* init_quadTree(int width, int length) { 
 	struct quad_tree* root = (struct quad_tree*) malloc(sizeof(struct quad_tree));
 	root->c0 = NULL;
 	root->c1 = NULL;
 	root->c2 = NULL;
 	root->c3 = NULL;
-	root->init_x = 0;
-	root->init_y = 0;
-	root->max_x = x;
-	root->max_y= y;
-	root->size = x * x ;
+	root->low_x = width/2*-1;
+	root->low_y = length/2*-1;
+	root->high_x = width / 2;
+	root->high_y= length / 2;
+	root->size = width * length;
+	root->value = NULL;
+	root->cent_M = 0;
+
+	return(root);
+}*/
+
+struct quad_tree* init_quadTree(int low_x, int high_x, int low_y, int high_y) {
+	struct quad_tree* root = (struct quad_tree*) malloc(sizeof(struct quad_tree));
+	root->c0 = NULL;
+	root->c1 = NULL;
+	root->c2 = NULL;
+	root->c3 = NULL;
+	root->low_x = low_x;
+	root->low_y = low_y;
+	root->high_x = high_x;
+	root->high_y = high_y;
+	root->size = (high_x - low_x+1) * (high_y - low_y +1);
 	root->value = NULL;
 	root->cent_M = 0;
 
@@ -61,51 +80,40 @@ bool insert(struct quad_tree* q, struct node* v) {  // re work to deal with x ma
 		q->value = v;
 		return true;
 	}
+	double w = sqrt(q->size) / 2;
 
 	//in quadrent one
-	if (v->x > q->max_x / 2 && v->y > q->max_y / 2) { //does not hava safty for out of bounds
+	if (v->x > q->high_x-w  && v->y >  q->high_y-w) { //does not hava safty for out of bounds
 		// if the node is not initiated do so here
 		if (q->c0 == NULL) {
-			q->c0 = init_quadTree(q->max_x , q->max_y );
-			q->c0->init_x = 1 + q->max_x/2;
-			q->c0->init_y = 1 + q->max_y/2;
-			q->c0->size = q->size / 4;
+			q->c0 = init_quadTree(q->high_x+1 -w, q->high_x , q->high_y+1-w, q->high_y );
 		}
 		return(insert(q->c0, v));
 	}
 
 	//in quadrent two
-	if (v->x <= q->max_x / 2 && v->y > q->max_y / 2) { //does not hava safty for out of bounds
+	else if (v->x <=  q->high_x-w && v->y >  q->high_y-w) { //does not hava safty for out of bounds
 		// if the node is not initiated do so here
 		if (q->c1 == NULL) {
-			q->c1 = init_quadTree(q->max_x/2, q->max_y) ;
-			q->c1->init_x = q->init_x;
-			q->c1->init_y = 1+ q->max_y/2;
-			q->c1->size = q->size / 4;
+			q->c1 = init_quadTree( q->low_x, q->high_x-w,  q->high_y+1 -w , q->high_y);
 		}
 		return(insert(q->c1, v));
 	}
 
 	//in quadrent three
-	if (v->x <= q->max_x / 2 && v->y <= q->max_y / 2) { //does not hava safty for out of bounds
+	else if (v->x <= q->high_x - w && v->y <= q->high_y - w) { //does not hava safty for out of bounds
 		// if the node is not initiated do so here
 		if (q->c2 == NULL) {
-			q->c2 = init_quadTree(q->max_x/2, q->max_y/2);
-			q->c2->init_x = q->init_x;
-			q->c2->init_y = q->init_y;
-			q->c2->size = q->size / 4;
+			q->c2 = init_quadTree(q->low_x, q->high_x - w, q->low_y, q->high_y - w);
 		}
 		return(insert(q->c2, v));
 	}
 
 	//in quadrent four
-	if (v->x > q->max_x / 2 && v->y <= q->max_y / 2) { //does not hava safty for out of bounds
+	else if (v->x >  q->high_x - w && v->y <=  q->high_y - w) { //does not hava safty for out of bounds
 		// if the node is not initiated do so here
 		if (q->c3 == NULL) {
-			q->c3 = init_quadTree(q->max_x, q->max_y / 2);
-			q->c3->init_x =1 + q->max_x/2;
-			q->c3->init_y = q->init_y;
-			q->c3->size = q->size / 4;
+			q->c3 = init_quadTree(q->high_x + 1-w, q->high_x, q->low_y, q->high_y-w);
 		}
 		return(insert(q->c3, v));
 	}
@@ -124,8 +132,11 @@ struct node* get(struct quad_tree* q, int x, int y) { // add safty for out of bo
 	// if the size is equal to one the element is located there
 	if (q->size == 1)
 		return q->value;
+
+	double w = sqrt(q->size) / 2;
+
 	// quadrent 1
-	if (x > q->max_x / 2 && y > q->max_y / 2) {
+	if (x >  q->high_x-w && y > q->high_y-w) {
 		if (q->c0 == NULL)
 			return NULL;
 		return get(q->c0, x, y);
@@ -133,21 +144,21 @@ struct node* get(struct quad_tree* q, int x, int y) { // add safty for out of bo
 	}
 
 	// quadrent 2
-	else if (x <= q->max_x / 2 && y > q->max_y / 2) {
+	else if (x <= q->high_x-w && y > q->high_y-w) {
 		if (q->c1 == NULL)
 			return NULL;
 		return get(q->c1, x, y);
 	}
 
 	// quadrent 3
-	else if (x <= q->max_x / 2 && y <= q->max_y / 2) {
+	else if (x <=  q->high_x-w && y <=  q->high_y-w) {
 		if (q->c2 == NULL)
 			return NULL;
 		return get(q->c2, x, y);
 	}
 
 	// quadrent 4
-	else if (x > q->max_x / 2 && y <= q->max_y / 2) {
+	else if (x > q->high_x-w && y <= q->high_y-w) {
 		if (q->c3 == NULL)
 			return NULL;
 		return get(q->c3, x, y);
@@ -155,17 +166,17 @@ struct node* get(struct quad_tree* q, int x, int y) { // add safty for out of bo
 }
 
 
-/* ussing for testing */
+/* using for testing  can change how ever you please*/
 
 void main() {
-	struct quad_tree* test = init_quadTree(4, 4);
+	struct quad_tree* test = init_quadTree(-3, 4, -3, 4);
 	struct node* nodeTest = (struct node*) malloc(sizeof(struct node));
 	nodeTest->mass = 123;
 	nodeTest->radius = 15;
 	nodeTest->x = 1;
 	nodeTest->y = 1;
 	bool hold = insert(test, nodeTest);
-	struct node* nodeTest2 = get(test, 1, 2);
+	struct node* nodeTest2 = get(test, 1, 1);
 	printf("%d\n", nodeTest2->mass);
 }
 
@@ -181,7 +192,7 @@ void main() {
 	z = q * sin(inclination)
 	q = perihelion distance
 	format from file
-	m, r, q, inclination, longitude of the ascending node       **** this can be changed at any time.******
+	Gm, q, inclination, longitude of the ascending node       **** this can be changed at any time.******
 */
 
 //************************* can be parallelized 
