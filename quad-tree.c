@@ -9,7 +9,7 @@
 	- The representative graph starts at a 1;
 */
 
-
+struct quad_tree* readInData(char* f, struct quad_tree* q);
 
 struct node {
 	int mass;
@@ -169,15 +169,8 @@ struct node* get(struct quad_tree* q, int x, int y) { // add safty for out of bo
 /* using for testing  can change how ever you please*/
 
 void main() {
-	struct quad_tree* test = init_quadTree(-3, 4, -3, 4);
-	struct node* nodeTest = (struct node*) malloc(sizeof(struct node));
-	nodeTest->mass = 123;
-	nodeTest->radius = 15;
-	nodeTest->x = 1;
-	nodeTest->y = 1;
-	bool hold = insert(test, nodeTest);
-	struct node* nodeTest2 = get(test, 1, 1);
-	printf("%d\n", nodeTest2->mass);
+	struct quad_tree* Q = (struct quad_tree*) malloc(sizeof(struct quad_tree));
+	readInData("test.txt", Q);
 }
 
 /* 
@@ -200,6 +193,25 @@ void main() {
 bool intiate_simulation() { // might need file loccation as a parameter takes a quadtree pointer
 
 	return false;
+}
+
+
+// read in data for File f and insert data into quadtree q.
+
+struct quad_tree* readInData(char* f, struct quad_tree* q) {
+
+	char* value = malloc(200);
+	FILE* inFile = fopen(f, "r");
+
+	if (!inFile)
+		return NULL;
+
+	while (fgets(value, 200, inFile)) {
+		printf(value);
+	}
+
+	fclose(f);
+	return NULL;
 }
 
 //divde by 1000 to get float of the og
