@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdlib.h> 
 #include <math.h>
+#include <string.h>
 
 /*
 ********************************************************NOTES FOR USE**********************************************************
@@ -12,10 +13,10 @@
 struct quad_tree* readInData(char* f, struct quad_tree* q);
 
 struct node {
-	int mass;
-	float radius;
-	int x;
-	int y;
+	double mass;
+	unsigned long distance;
+	long x;
+	long y;
 	int z;
 };
 
@@ -170,7 +171,7 @@ struct node* get(struct quad_tree* q, int x, int y) { // add safty for out of bo
 
 void main() {
 	struct quad_tree* Q = (struct quad_tree*) malloc(sizeof(struct quad_tree));
-	readInData("test.txt", Q);
+	readInData("results.txt", Q);
 }
 
 /* 
@@ -197,6 +198,7 @@ bool intiate_simulation() { // might need file loccation as a parameter takes a 
 
 
 // read in data for File f and insert data into quadtree q.
+// data formate is 	absolute magnitude parameter, perihelion distance, longitude of the ascending node
 
 struct quad_tree* readInData(char* f, struct quad_tree* q) {
 
@@ -206,11 +208,38 @@ struct quad_tree* readInData(char* f, struct quad_tree* q) {
 	if (!inFile)
 		return NULL;
 
-	while (fgets(value, 200, inFile)) {
-		printf(value);
+	while (fgets(value, 150, inFile)) {
+		int i = 0;
+		char * token = strtok(value, ",");
+		struct node* val = (struct node*) malloc(sizeof(struct node));
+		float mass;
+		float hold_abs;
+		double hold_dis;
+		double hold_angle;
+
+		while( token != NULL ) {	
+			if(i == 0){ // for absolute magnitude
+				hold_abs = strtod(token, NULL);
+			}
+			else if(i == 1){ // for perihelion distance
+				hold_dis = strtod(token, NULL);
+			}
+			else if(i == 2){ // for longitude of the assending node
+				hold_angle = strtod(token, NULL);
+			}
+			//printf("i: %d\n", i);
+			token = strtok(NULL, ",");
+			++i;
+   		}
+
+		val->mass = 4.83*(pow(10,(hold_abs-4.83)/-2.5));
+		val->x = (hold_dis*10000000000000000)*sin(hold_angle);
+		val->y = (hold_dis*10000000000000000)*cos(hold_angle);
+		//printf("%f\n",hold_angle);
+		printf("%ld\n",val->x);
 	}
 
-	fclose(f);
+	fclose(inFile);
 	return NULL;
 }
 
