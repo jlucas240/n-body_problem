@@ -11,12 +11,19 @@
 */
 
 struct quad_tree* readInData(char* f, struct quad_tree* q);
+double get_force(struct quad_tree *tree);
 
 struct node {
 	double mass;
 	unsigned long distance;
-	long x;
-	long y;
+	long x; 
+	long y; 
+	double x_force; //force in x dimension
+	double y_force; //force in y dimension
+	double x_velocity; //velocity 
+	double y_velocity;
+	double x_coordinates; //coordinates
+	double y_coordinates;
 	int z;
 };
 
@@ -32,7 +39,14 @@ struct quad_tree {
 	int high_y; // length
 	int size;
 	float cent_M; // center of mass at 
+	struct node_list *quadtrees_nodes; // list of structs which hold the number of nodess + info
 };
+
+struct node_list
+{
+    struct node * node_info[5000];// hold list of node structs
+    int num_nodes; //number of nodes in list
+}; 
 
 // width and length should be the same thing
 
@@ -49,7 +63,6 @@ struct quad_tree {
 	root->size = width * length;
 	root->value = NULL;
 	root->cent_M = 0;
-
 	return(root);
 }*/
 
@@ -258,7 +271,70 @@ float simulate() {
 	// step 1 travers quadtree and get center of mass at each parent node
 	// will be done with DFS
 
+
+
 }
+
+
+/**************************************
+This function takes in a quadtree struct, goes down the quadtree and finds the force, mass, velocity
+calculates new position
+
+***************************************/
+
+struct quad_tree * movement (struct quad_tree *tree)
+{
+
+	double x_var [tree->quadtrees_nodes->num_nodes]; //get list of x components
+    	double y_var [tree->quadtrees_nodes->num_nodes]; //get list of y components
+	double x_node_force; 
+	double y_node_force;
+	double node_mass;
+	double x_node_velocity;
+	double y_node_velocity;
+	int aa;
+	int bb;
+    
+	
+	//parallelize for loop
+	//loop through each quadtree, get mass, get velocity, get coordinates, calculate force
+    	for (aa = 0; aa < tree->quadtrees_nodes->num_nodes; aa++)
+    		{
+        	node_mass = tree->quadtrees_nodes->node_info[aa]->mass; //get node mass
+		x_node_force, y_node_force = get_force(tree); //get force components on node
+
+        	x_node_velocity = tree->quadtrees_nodes->node_info[aa]->x_velocity + x_node_force/node_mass; //get new  x velocity
+        	y_node_velocity = tree->quadtrees_nodes->node_info[aa]->y_velocity + y_node_force/node_mass; //get new y velocity
+        
+        	x_var[aa] = tree->quadtrees_nodes->node_info[aa]->x_coordinates + x_node_velocity; //get new x coordinates
+        	y_var[aa] = tree->quadtrees_nodes->node_info[aa]->y_coordinates + y_node_velocity; //get new y coordinates
+        
+        	tree->quadtrees_nodes->node_info[aa]->x_velocity = x_node_velocity; //update x velocity
+       		tree->quadtrees_nodes->node_info[aa]->y_velocity = y_node_velocity;	//update y velocity
+		}
+    
+	//
+    	for (bb = 0; bb < tree->quadtrees_nodes->num_nodes; bb++)
+   	 	{
+        	tree->quadtrees_nodes->node_info[bb]->x_coordinates  = x_var[bb]; //update each quadtree with new coordinate
+        	tree->quadtrees_nodes->node_info[bb]->y_coordinates = y_var[bb];
+   	 	}
+    
+
+	return tree;
+
+}
+
+double get_force(struct quad_tree *tree)
+{
+	double x_force;
+	double y_force;
+
+return (x_force, y_force);
+
+
+}
+
 
 // go to bottom of tree then come back up calculating center of mass at each point
 
@@ -270,3 +346,4 @@ float dfs(struct quad_tree* Q) {
 		Q->cent_M = Q->value.
 	}*/
 }
+
