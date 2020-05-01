@@ -31,11 +31,13 @@ struct quad_tree {
 	struct quad_tree* c2;
 	struct quad_tree* c3;
 	struct node* value;
-	int low_x;
-	int low_y;
-	int high_x; // half of width
-	int high_y; // length
+	double low_x;
+	double low_y;
+	double high_x; // half of width
+	double high_y; // length
 	int size;
+	double mass_x;
+	double mass_y;
 	float cent_M; // center of mass at 
 	struct node_list *quadtrees_nodes; // list of structs which hold the number of nodess + info
 };
@@ -62,6 +64,8 @@ struct quad_tree* init_quadTree(int low_x, int high_x, int low_y, int high_y) {
 	root->high_y = high_y;
 	root->size = pow((high_x - low_x+1),2);
 	root->value = NULL;
+	root->mass_x = 0;	
+	root->mass_y = 0;
 	root->cent_M = 0;
 
 	return(root);
@@ -293,7 +297,7 @@ struct quad_tree * movement (struct quad_tree *tree)
 {
 
 	double x_var [tree->quadtrees_nodes->num_nodes]; //get list of x components
-    double y_var [tree->quadtrees_nodes->num_nodes]; //get list of y components
+    	double y_var [tree->quadtrees_nodes->num_nodes]; //get list of y components
 	double x_node_force; 
 	double y_node_force;
 	double node_mass;
@@ -308,7 +312,7 @@ struct quad_tree * movement (struct quad_tree *tree)
     	for (aa = 0; aa < tree->quadtrees_nodes->num_nodes; aa++)
     		{
         	node_mass = tree->quadtrees_nodes->node_info[aa]->mass; //get node mass
-			x_node_force, y_node_force = get_force(tree); //get force components on node
+		x_node_force, y_node_force = get_force(tree, tree->quadtrees_nodes->node_info[aa]); //get force components on node
 
         	x_node_velocity = tree->quadtrees_nodes->node_info[aa]->x_velocity + x_node_force/node_mass; //get new  x velocity
         	y_node_velocity = tree->quadtrees_nodes->node_info[aa]->y_velocity + y_node_force/node_mass; //get new y velocity
@@ -332,12 +336,64 @@ struct quad_tree * movement (struct quad_tree *tree)
 
 }
 
-double get_force(struct quad_tree *tree)
+double get_force(struct quad_tree *tree, struct node *node_n)
 {
-	double x_force;
-	double y_force;
 
-return (x_force, y_force);
+    	double node_mass = node_n->mass;
+	double total_mass;
+	double length_between_mass;
+	double mass_of_x;
+	double mass_of_y;
+
+
+    	double node_coordinates_x = node_n->x_coordinates;
+    	double node_coordinates_y = node_n->y_coordinates;
+    	double calc_force_x = 0;
+    	double calc_force_y = 0;
+	double x_force_array[4] = {0};
+	double y_force_array[4] = {0};
+    
+    if (tree->quadtrees_nodes->num_nodes == 1)
+    {
+        length_between_mass = sqrt(pow((node_n->x_coordinates - tree->quadtrees_nodes->node_info[0]->x_coordinates), 2) + pow((node_coordinates_y - tree->quadtrees_nodes->node_info[0]->y_coordinates), 2));
+        if (length_between_mass > 0)
+        {
+            calc_force_x = node_mass * tree->mass * 0.00000000006673 * (tree->quadtrees_nodes->node_info[0]->x_coordinates - node_coordinates_x) / pow(length_between_mass, 3);
+            calc_force_y = node_mass * tree->mass * 0.00000000006673 * (tree->quadtrees_nodes->node_info[0]->y_coordinates - node_coordinates_y) / pow(length_between_mass, 3);
+        }
+    }
+    else 
+    {
+       	total_mass = tree->mass;
+        mass_of_x = tree->mass_x;
+        mass_of_y = tree->mass_y;
+        length_between_mass = sqrt(pow((mass_of_x - node_coordinates_x), 2) + pow((mass_of_y - node_coordinates_x), 2));
+
+        if(((tree->high_x - tree->low_x)/length_between_mass) < 0.3 && (length_between_mass > 0) )
+        {
+            calc_force_x = calc_force_x + (node_mass * total_mass * 0.00000000006673 * (mass_of_x - node_coordinates_x) / pow(length_between_mass, 3));
+            calc_force_y =  calc_force_y + (node_mass * total_mass * 0.00000000006673 * (mass_of_y - node_coordinates_y) / pow(length_between_mass, 3));
+        }
+        else
+        {
+
+            if (tree->c0 != 0)
+            { x_force_array[0], y_force_array[0] = getForce(node_n, tree->c0);  }
+            if (tree->c1 != 0)
+            { x_force_array[1], y_force_array[1] = getForce(node_n, tree->c1);  }
+            if (tree->c2 != 0)
+            { x_force_array[2], y_force_array[2] = getForce(node_n, tree->c2);  }
+            if (tree->c3 != 0)
+            { x_force_array[3], y_force_array[3] = getForce(node_n, tree->c3); }
+           
+	 	calc_force_x = x_force_array[0] + x_force_array[1] + x_force_array[2] + x_force_array[3];
+		calc_force_y = y_force_array[0] + y_force_array[1] + y_force_array[2] + y_force_array[3];
+        }
+    }
+    
+ 
+
+return (calc_force_x, calc_force_y);
 
 
 }
