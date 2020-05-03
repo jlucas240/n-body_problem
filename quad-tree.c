@@ -11,9 +11,15 @@
 */
 
 struct quad_tree* readInData(char* f, struct quad_tree* q);
-double get_force(struct quad_tree *tree);
+void simulat(struct quad_tree* q);
+struct node_list *nodesInTree;
 
-struct node {
+struct pair {
+	double x;
+	double y;
+};
+
+typedef struct node {
 	double mass;
 	long x; 
 	long y; 
@@ -23,28 +29,31 @@ struct node {
 	double y_velocity;
 	double x_coordinates; //coordinates
 	double y_coordinates;
-};
+} node;
 
+struct pair* get_force(struct quad_tree *q, struct node *n);
 struct quad_tree {
 	struct quad_tree* c0;
 	struct quad_tree* c1;
 	struct quad_tree* c2;
 	struct quad_tree* c3;
 	struct node* value;
-	double low_x;
-	double low_y;
-	double high_x; // half of width
-	double high_y; // length
-	int size;
+	long low_x;
+	long low_y;
+	long high_x; // half of width
+	long high_y; // length
+	long size;
 	double mass_x;
 	double mass_y;
-	float cent_M; // center of mass at 
+	long cent_M_x; // center of mass at 
+	long cent_M_y;
+	double mass;
 	struct node_list *quadtrees_nodes; // list of structs which hold the number of nodess + info
 };
 
 struct node_list
 {
-    struct node * node_info[5000];// hold list of node structs
+    struct node *node_info[960000];// hold list of node structs
     int num_nodes; //number of nodes in list
 }; 
 
@@ -66,7 +75,8 @@ struct quad_tree* init_quadTree(int low_x, int high_x, int low_y, int high_y) {
 	root->value = NULL;
 	root->mass_x = 0;	
 	root->mass_y = 0;
-	root->cent_M = 0;
+	root->cent_M_x = 0;
+	root->cent_M_y = 0;
 
 	return(root);
 }
@@ -78,6 +88,7 @@ struct quad_tree* init_quadTree(int low_x, int high_x, int low_y, int high_y) {
 
 bool insert(struct quad_tree* q, struct node* v) {  // re work to deal with x max being /2 at all times
 	// if the size is one the bottom of the tree has been reached add the point there.
+
 	if (q->size == 1) {
 		if(q->value != NULL)
 		{
@@ -129,6 +140,8 @@ bool insert(struct quad_tree* q, struct node* v) {  // re work to deal with x ma
 
 }
 
+
+
 /*
 	This function retreves a node in the treee at the  int x and int y. 
 	where q is the quad tree being searched.
@@ -175,33 +188,84 @@ struct node* get(struct quad_tree* q, int x, int y) { // add safty for out of bo
 }
 
 
+/*****************************
+ * calculates center of mass and mass at each parent and and leaf
+ ******************************/
+bool set_up(struct quad_tree *q){
+
+	double c0_cmx = 0, c0_cmy = 0, c0_m = 0;
+	double c1_cmx = 0, c1_cmy, c1_m = 0;
+	double c2_cmx = 0, c2_cmy, c2_m = 0;
+	double c3_cmx = 0, c3_cmy = 0, c3_m = 0;
+
+	if(q->size != 1){
+		if(q->c0 != NULL)
+			set_up(q->c0);
+		if(q->c1 != NULL)
+			set_up(q->c1);
+		if(q->c2 != NULL)
+			set_up(q->c2);
+		if(q->c3 != NULL)
+			set_up(q->c3);
+
+		if(q->value == NULL){
+			if(q->c0 == NULL && q->c1 == NULL && q->c2 == NULL && q->c3 == NULL ){
+				return false;
+			};
+			if(q->c0 != NULL){
+				c0_cmx = q->c0->cent_M_x;
+				c0_cmy = q->c0->cent_M_y;
+				c0_m = q->c0->mass;
+			}
+			if(q->c1 != NULL){
+				c1_cmx = q->c1->cent_M_x;
+				c1_cmy = q->c1->cent_M_y;
+				c1_m = q->c1->mass;
+			}
+			if(q->c2 != NULL){
+				c2_cmx = q->c2->cent_M_x;
+				c2_cmy = q->c2->cent_M_y;
+				c2_m = q->c2->mass;
+			}
+			if(q->c3 != NULL){
+				c3_cmx = q->c3->cent_M_x;
+				c3_cmy = q->c3->cent_M_y;
+				c3_m = q->c3->mass;
+			}
+
+			q->mass = c0_m + c1_m + c2_m + c3_m;
+			q->cent_M_x = (c0_cmx*c0_m + c1_cmx*c1_m + c2_cmx*c2_m + c3_cmx*c3_m)/q->mass;
+			q->cent_M_y = (c0_cmy*c0_m + c1_cmy*c1_m + c2_cmy*c2_m + c3_cmy*c3_m)/q->mass;
+			//printf("parent\n");
+			return true;
+		}
+	}
+
+	//printf("leaf\n");
+	q->cent_M_x = q->value->x_coordinates;
+	q->cent_M_y = q->value->y_coordinates;
+	q->mass = q->value->mass;
+	//nodesInTree->node_info = q->value;
+	return true;
+
+}
+
+
+
+
 /* using for testing  can change how ever you please*/
 
 void main() {
 	struct quad_tree* Q = init_quadTree(-536870911, 536870912, -536870911, 536870912);
-	readInData("results.txt", Q); 
-}
+	nodesInTree = (struct node_list*) malloc(sizeof(struct node_list));
+	
 
-/* 
-	read data in x lines at a time. use longitude of acending and mean anomaly to 
-	make a cordinate system to put the data into the quad tree. Earth will be (0,0)
-	when entering into the quad tree th z will be ignored but stored inthe node value.
-	this will portntialy make the aproximation less accurate, but no other way was seen
-	to acomplizh this besides this. This may cause the tree to need a bucket bust will 
-	need to be tested first. ALSO multiply the values by 1000 to get integers.
-	x = q * cos(lonuitude of asending node)
-	y = q * sin(lonuitude of asending node)
-	z = q * sin(inclination)
-	q = perihelion distance
-	format from file
-	Gm, q, inclination, longitude of the ascending node       **** this can be changed at any time.******
-*/
-
-//************************* can be parallelized 
-
-bool intiate_simulation() { // might need file loccation as a parameter takes a quadtree pointer
-
-	return false;
+	
+	/*Q = readInData("results.txt", Q); 
+	set_up(Q);
+	simulat(Q);
+	printf("it worked?");*/
+	
 }
 
 
@@ -223,6 +287,7 @@ struct quad_tree* readInData(char* f, struct quad_tree* q) {
 		int i = 0;
 		char * token = strtok(value, ",");
 		struct node* val = (struct node*) malloc(sizeof(struct node));
+		struct node* val2 = (struct node*) malloc(sizeof(struct node));
 		float mass;
 		float hold_abs;
 		double hold_dis;
@@ -263,30 +328,16 @@ struct quad_tree* readInData(char* f, struct quad_tree* q) {
 		val->x_velocity = velocity*cos(hold_angle);
 		val->y_velocity	= velocity*sin(hold_angle);
 		k++;
-		insert(q, val); // insert in to table
-		//exit(0);
+		// add node to list of nodes
+		nodesInTree->num_nodes = k;
+		nodesInTree->node_info[k-1] = val;
+		
+		insert(q, val); // insert in to tree
 	}
-
-	fclose(inFile);
-	return NULL;
+	fclose(inFile); 
+	return q;
 }
 
-//divde by 1000 to get float of the og
-
-//************************* can be parallelized 
-
-float simulate() {
-	
-	bool hold = intiate_simulation();// send a quad tree pointer
-
-	if (hold == false) {
-		// error
-	}
-
-	// step 1 travers quadtree and get center of mass at each parent node
-	// will be done with DFS
-
-}
 
 /**************************************
 This function takes in a quadtree struct, goes down the quadtree and finds the force, mass, velocity
@@ -296,8 +347,8 @@ calculates new position
 struct quad_tree * movement (struct quad_tree *tree)
 {
 
-	double x_var [tree->quadtrees_nodes->num_nodes]; //get list of x components
-    	double y_var [tree->quadtrees_nodes->num_nodes]; //get list of y components
+	double x_var [nodesInTree->num_nodes]; //get list of x components
+    double y_var [nodesInTree->num_nodes]; //get list of y components
 	double x_node_force; 
 	double y_node_force;
 	double node_mass;
@@ -305,30 +356,32 @@ struct quad_tree * movement (struct quad_tree *tree)
 	double y_node_velocity;
 	int aa;
 	int bb;
+	struct pair* force;
     
 	
 	//parallelize for loop
 	//loop through each quadtree, get mass, get velocity, get coordinates, calculate force
-    	for (aa = 0; aa < tree->quadtrees_nodes->num_nodes; aa++)
+    	for (aa = 0; aa < nodesInTree->num_nodes; aa++)
     		{
-        	node_mass = tree->quadtrees_nodes->node_info[aa]->mass; //get node mass
-		x_node_force, y_node_force = get_force(tree, tree->quadtrees_nodes->node_info[aa]); //get force components on node
+        	node_mass = nodesInTree->node_info[aa]->mass; //get node mass
+			force = get_force(tree, tree->quadtrees_nodes->node_info[aa]); //get force components on node
+			x_node_force = force->x, y_node_force = force->y;
 
-        	x_node_velocity = tree->quadtrees_nodes->node_info[aa]->x_velocity + x_node_force/node_mass; //get new  x velocity
-        	y_node_velocity = tree->quadtrees_nodes->node_info[aa]->y_velocity + y_node_force/node_mass; //get new y velocity
+        	x_node_velocity = nodesInTree->node_info[aa]->x_velocity + x_node_force/node_mass; //get new  x velocity
+        	y_node_velocity = nodesInTree->node_info[aa]->y_velocity + y_node_force/node_mass; //get new y velocity
         
-        	x_var[aa] = tree->quadtrees_nodes->node_info[aa]->x_coordinates + x_node_velocity; //get new x coordinates
-        	y_var[aa] = tree->quadtrees_nodes->node_info[aa]->y_coordinates + y_node_velocity; //get new y coordinates
+        	x_var[aa] = nodesInTree->node_info[aa]->x_coordinates + x_node_velocity; //get new x coordinates
+        	y_var[aa] = nodesInTree->node_info[aa]->y_coordinates + y_node_velocity; //get new y coordinates
         
-        	tree->quadtrees_nodes->node_info[aa]->x_velocity = x_node_velocity; //update x velocity
-       		tree->quadtrees_nodes->node_info[aa]->y_velocity = y_node_velocity;	//update y velocity
+        	nodesInTree->node_info[aa]->x_velocity = x_node_velocity; //update x velocity
+       		nodesInTree->node_info[aa]->y_velocity = y_node_velocity;	//update y velocity
 		}
     
 	//
-    	for (bb = 0; bb < tree->quadtrees_nodes->num_nodes; bb++)
+    	for (bb = 0; bb < nodesInTree->num_nodes; bb++)
    	 	{
-        	tree->quadtrees_nodes->node_info[bb]->x_coordinates  = x_var[bb]; //update each quadtree with new coordinate
-        	tree->quadtrees_nodes->node_info[bb]->y_coordinates = y_var[bb];
+        	nodesInTree->node_info[bb]->x_coordinates  = x_var[bb]; //update each quadtree with new coordinate
+        	nodesInTree->node_info[bb]->y_coordinates = y_var[bb];
    	 	}
     
 
@@ -336,24 +389,26 @@ struct quad_tree * movement (struct quad_tree *tree)
 
 }
 
-double get_force(struct quad_tree *tree, struct node *node_n)
+struct pair *get_force(struct quad_tree *tree, struct node *node_n)
 {
 
-    	double node_mass = node_n->mass;
+    double node_mass = node_n->mass;
 	double total_mass;
 	double length_between_mass;
 	double mass_of_x;
 	double mass_of_y;
 
 
-    	double node_coordinates_x = node_n->x_coordinates;
-    	double node_coordinates_y = node_n->y_coordinates;
-    	double calc_force_x = 0;
-    	double calc_force_y = 0;
+    double node_coordinates_x = node_n->x_coordinates;
+    double node_coordinates_y = node_n->y_coordinates;
+    double calc_force_x = 0;
+    double calc_force_y = 0;
 	double x_force_array[4] = {0};
 	double y_force_array[4] = {0};
+
+	struct pair *ret = (struct pair*) malloc(sizeof(struct pair)); // structurre used to return 2 elements
     
-    if (tree->quadtrees_nodes->num_nodes == 1)
+    if (nodesInTree->num_nodes == 1)
     {
         length_between_mass = sqrt(pow((node_n->x_coordinates - tree->quadtrees_nodes->node_info[0]->x_coordinates), 2) + pow((node_coordinates_y - tree->quadtrees_nodes->node_info[0]->y_coordinates), 2));
         if (length_between_mass > 0)
@@ -391,20 +446,98 @@ double get_force(struct quad_tree *tree, struct node *node_n)
         }
     }
     
- 
+	ret->x = calc_force_x;
+	ret->y = calc_force_y;
 
-return (calc_force_x, calc_force_y);
-
+return ret;
 
 }
 
-// go to bottom of tree then come back up calculating center of mass at each point
+/*void simulat(struct quad_tree* q){
 
-//************************* can be parallelized 
+	struct node_list *hold_list = (struct node_list*) malloc(sizeof(struct node_list));
+	struct quad_tree *hold_tree = init_quadTree(-536870911, 536870912, -536870911, 536870912);
 
-float dfs(struct quad_tree* Q) {
-	
-	/*if (Q->size == 1) {
-		Q->cent_M = Q->value.
-	}*/
+	for (int i  = 0; i < nodesInTree->num_nodes; ++i){
+		struct node *hold = nodesInTree->node_info[i]; 
+		struct node *hold1 = (struct node*) malloc(sizeof(struct node));
+		hold1->mass = hold->mass;
+		double hold_xf;
+		double hold_yf;
+		struct pair* hold_f = get_force(q, hold);
+
+		// compute force on node
+		//hold_f = get_force(q, hold);
+		hold_xf = hold_f->x;
+		hold_yf = hold_f->y;
+		free(hold_f);
+		
+
+		//get changes in velocity		
+		hold1->x_velocity = hold_xf/hold1->mass;
+		hold1->y_velocity = hold_yf/hold1->mass;
+
+		//get changes in position
+		hold1->x_coordinates = hold->x_coordinates+hold1->x_velocity;
+		hold1->y_coordinates = hold->y_coordinates+hold1->y_velocity;
+		hold1->x = hold1->x_coordinates*1000000;
+		hold1->y = hold1->y_coordinates*1000000;
+
+		//add to new list
+		hold_list->node_info[i] = hold1;
+		hold_list->num_nodes = i;
+		// add to new tree
+		insert(hold_tree, hold1);
+
+		//if (i == 20 )
+			//exit(0);
+		
+	}
+
+	free(nodesInTree);
+	free(q);
+	nodesInTree = hold_list;
+	q = hold_tree;
+	set_up(q);
 }
+
+struct pair* get_force(struct quad_tree *q, struct node *n){
+	double force_x = 0;
+	double force_y = 0;
+	struct pair *ret = (struct pair*) malloc(sizeof(struct pair));
+
+	if(q->size == 1 || n->mass/sqrt(pow(q->cent_M_x - n->x_coordinates, 2) + pow(q->cent_M_y - n->y_coordinates, 2)) <= 1){
+		force_x = 0.0000000000667*q->mass*(n->x_coordinates- q->cent_M_x)/pow(n->x_coordinates- q->cent_M_x, 3);
+		force_y = 0.0000000000667*q->mass*(n->y_coordinates- q->cent_M_y)/pow(n->y_coordinates- q->cent_M_y, 3);
+		ret->x = force_x;
+		ret->y = force_y;
+		return ret;
+	}
+	struct pair* hold;
+
+	if(q->c0 != NULL){
+		hold = get_force(q->c0,n);
+		force_x += hold->x;
+		force_y += hold->y;
+	}
+	if(q->c1 != NULL){
+		hold = get_force(q->c1,n);
+		force_x += hold->x;
+		force_y += hold->y;
+	}
+	if(q->c2 != NULL){
+		hold = get_force(q->c2,n);
+		force_x += hold->x;
+		force_y += hold->y;
+	}
+	if(q->c3 != NULL){
+		hold = get_force(q->c3,n);
+		force_x += hold->x;
+		force_y += hold->y;
+	}
+	free(hold);
+
+	ret->x = force_x;
+	ret->y = force_y;
+	return ret;
+}*/
