@@ -11,7 +11,7 @@
 /*
 ********************************************************NOTES FOR USE**********************************************************
 	- run with gcc  -o n n-bodyProblem.c -lm -g -fopenmp
-	
+	- ./n
 	
 	- The width(x) and length(y) should be a power of 2 just to make life simple
 	- The representative graph starts at a 1;
