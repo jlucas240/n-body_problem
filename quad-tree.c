@@ -348,7 +348,7 @@ struct quad_tree * movement (struct quad_tree *tree)
 {
 
 	double x_var [nodesInTree->num_nodes]; //get list of x components
-    double y_var [nodesInTree->num_nodes]; //get list of y components
+    	double y_var [nodesInTree->num_nodes]; //get list of y components
 	double x_node_force; 
 	double y_node_force;
 	double node_mass;
@@ -364,8 +364,9 @@ struct quad_tree * movement (struct quad_tree *tree)
     	for (aa = 0; aa < nodesInTree->num_nodes; aa++)
     		{
         	node_mass = nodesInTree->node_info[aa]->mass; //get node mass
-			force = get_force(tree, tree->quadtrees_nodes->node_info[aa]); //get force components on node
-			x_node_force = force->x, y_node_force = force->y;
+		force = get_force(tree, tree->quadtrees_nodes->node_info[aa]); //get force components on node
+		x_node_force = force->x;
+		y_node_force = force->y;
 
         	x_node_velocity = nodesInTree->node_info[aa]->x_velocity + x_node_force/node_mass; //get new  x velocity
         	y_node_velocity = nodesInTree->node_info[aa]->y_velocity + y_node_force/node_mass; //get new y velocity
@@ -403,8 +404,7 @@ struct pair *get_force(struct quad_tree *tree, struct node *node_n)
     double node_coordinates_y = node_n->y_coordinates;
     double calc_force_x = 0;
     double calc_force_y = 0;
-	double x_force_array[4] = {0};
-	double y_force_array[4] = {0};
+	struct quad_tree * tree_array[4];
 
 	struct pair *ret = (struct pair*) malloc(sizeof(struct pair)); // structurre used to return 2 elements
     
@@ -432,17 +432,19 @@ struct pair *get_force(struct quad_tree *tree, struct node *node_n)
         else
         {
 
-            if (tree->c0 != 0)
-            { x_force_array[0], y_force_array[0] = getForce(node_n, tree->c0);  }
-            if (tree->c1 != 0)
-            { x_force_array[1], y_force_array[1] = getForce(node_n, tree->c1);  }
-            if (tree->c2 != 0)
-            { x_force_array[2], y_force_array[2] = getForce(node_n, tree->c2);  }
-            if (tree->c3 != 0)
-            { x_force_array[3], y_force_array[3] = getForce(node_n, tree->c3); }
-           
-	 	calc_force_x = x_force_array[0] + x_force_array[1] + x_force_array[2] + x_force_array[3];
-		calc_force_y = y_force_array[0] + y_force_array[1] + y_force_array[2] + y_force_array[3];
+	tree_array[0] = tree->c0;
+	tree_array[1] = tree->c1;
+	tree_array[2] = tree->c2;
+	tree_array[3] = tree->c3;
+
+	for (int cc = 0; cc < 3; cc++)
+	{
+		if (tree_array[cc])
+		{ret = get_force(tree_array[cc], node_n);  
+		calc_force_x += ret->x;	
+		calc_force_y += ret->y;}
+	}
+    
         }
     }
     
@@ -450,94 +452,4 @@ struct pair *get_force(struct quad_tree *tree, struct node *node_n)
 	ret->y = calc_force_y;
 
 return ret;
-
 }
-
-/*void simulat(struct quad_tree* q){
-
-	struct node_list *hold_list = (struct node_list*) malloc(sizeof(struct node_list));
-	struct quad_tree *hold_tree = init_quadTree(-536870911, 536870912, -536870911, 536870912);
-
-	for (int i  = 0; i < nodesInTree->num_nodes; ++i){
-		struct node *hold = nodesInTree->node_info[i]; 
-		struct node *hold1 = (struct node*) malloc(sizeof(struct node));
-		hold1->mass = hold->mass;
-		double hold_xf;
-		double hold_yf;
-		struct pair* hold_f = get_force(q, hold);
-
-		// compute force on node
-		//hold_f = get_force(q, hold);
-		hold_xf = hold_f->x;
-		hold_yf = hold_f->y;
-		free(hold_f);
-		
-
-		//get changes in velocity		
-		hold1->x_velocity = hold_xf/hold1->mass;
-		hold1->y_velocity = hold_yf/hold1->mass;
-
-		//get changes in position
-		hold1->x_coordinates = hold->x_coordinates+hold1->x_velocity;
-		hold1->y_coordinates = hold->y_coordinates+hold1->y_velocity;
-		hold1->x = hold1->x_coordinates*1000000;
-		hold1->y = hold1->y_coordinates*1000000;
-
-		//add to new list
-		hold_list->node_info[i] = hold1;
-		hold_list->num_nodes = i;
-		// add to new tree
-		insert(hold_tree, hold1);
-
-		//if (i == 20 )
-			//exit(0);
-		
-	}
-
-	free(nodesInTree);
-	free(q);
-	nodesInTree = hold_list;
-	q = hold_tree;
-	set_up(q);
-}
-
-struct pair* get_force(struct quad_tree *q, struct node *n){
-	double force_x = 0;
-	double force_y = 0;
-	struct pair *ret = (struct pair*) malloc(sizeof(struct pair));
-
-	if(q->size == 1 || n->mass/sqrt(pow(q->cent_M_x - n->x_coordinates, 2) + pow(q->cent_M_y - n->y_coordinates, 2)) <= 1){
-		force_x = 0.0000000000667*q->mass*(n->x_coordinates- q->cent_M_x)/pow(n->x_coordinates- q->cent_M_x, 3);
-		force_y = 0.0000000000667*q->mass*(n->y_coordinates- q->cent_M_y)/pow(n->y_coordinates- q->cent_M_y, 3);
-		ret->x = force_x;
-		ret->y = force_y;
-		return ret;
-	}
-	struct pair* hold;
-
-	if(q->c0 != NULL){
-		hold = get_force(q->c0,n);
-		force_x += hold->x;
-		force_y += hold->y;
-	}
-	if(q->c1 != NULL){
-		hold = get_force(q->c1,n);
-		force_x += hold->x;
-		force_y += hold->y;
-	}
-	if(q->c2 != NULL){
-		hold = get_force(q->c2,n);
-		force_x += hold->x;
-		force_y += hold->y;
-	}
-	if(q->c3 != NULL){
-		hold = get_force(q->c3,n);
-		force_x += hold->x;
-		force_y += hold->y;
-	}
-	free(hold);
-
-	ret->x = force_x;
-	ret->y = force_y;
-	return ret;
-}*/
