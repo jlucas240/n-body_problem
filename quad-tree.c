@@ -13,6 +13,7 @@
 struct quad_tree* readInData(char* f, struct quad_tree* q);
 void simulat(struct quad_tree* q);
 struct node_list *nodesInTree;
+struct quad_tree * movement (struct quad_tree *tree);
 
 struct pair {
 	double x;
@@ -32,6 +33,7 @@ typedef struct node {
 } node;
 
 struct pair* get_force(struct quad_tree *q, struct node *n);
+
 struct quad_tree {
 	struct quad_tree* c0;
 	struct quad_tree* c1;
@@ -259,12 +261,10 @@ void main() {
 	struct quad_tree* Q = init_quadTree(-536870911, 536870912, -536870911, 536870912);
 	nodesInTree = (struct node_list*) malloc(sizeof(struct node_list));
 	
-
-	
-	/*Q = readInData("results.txt", Q); 
-	set_up(Q);
-	simulat(Q);
-	printf("it worked?");*/
+	Q = readInData("results.txt", Q); 
+	//set_up(Q);
+	movement(Q);
+	printf("it worked?");
 	
 }
 
@@ -348,7 +348,7 @@ struct quad_tree * movement (struct quad_tree *tree)
 {
 
 	double x_var [nodesInTree->num_nodes]; //get list of x components
-    	double y_var [nodesInTree->num_nodes]; //get list of y components
+    double y_var [nodesInTree->num_nodes]; //get list of y components
 	double x_node_force; 
 	double y_node_force;
 	double node_mass;
@@ -364,9 +364,9 @@ struct quad_tree * movement (struct quad_tree *tree)
     	for (aa = 0; aa < nodesInTree->num_nodes; aa++)
     		{
         	node_mass = nodesInTree->node_info[aa]->mass; //get node mass
-		force = get_force(tree, tree->quadtrees_nodes->node_info[aa]); //get force components on node
-		x_node_force = force->x;
-		y_node_force = force->y;
+			force = get_force(tree, tree->quadtrees_nodes->node_info[aa]); //get force components on node
+			x_node_force = force->x;
+			y_node_force = force->y;
 
         	x_node_velocity = nodesInTree->node_info[aa]->x_velocity + x_node_force/node_mass; //get new  x velocity
         	y_node_velocity = nodesInTree->node_info[aa]->y_velocity + y_node_force/node_mass; //get new y velocity
@@ -432,10 +432,10 @@ struct pair *get_force(struct quad_tree *tree, struct node *node_n)
         else
         {
 
-	tree_array[0] = tree->c0;
-	tree_array[1] = tree->c1;
-	tree_array[2] = tree->c2;
-	tree_array[3] = tree->c3;
+		tree_array[0] = tree->c0;
+		tree_array[1] = tree->c1;
+		tree_array[2] = tree->c2;
+		tree_array[3] = tree->c3;
 
 	for (int cc = 0; cc < 3; cc++)
 	{
