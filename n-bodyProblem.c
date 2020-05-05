@@ -3,6 +3,8 @@
 #include <stdlib.h> 
 #include <math.h>
 #include <string.h>
+#include <pthread.h>
+#include <omp.h>
 #include "timer.h"
 
 
@@ -92,6 +94,8 @@ struct quad_tree* init_quadTree(int low_x, int high_x, int low_y, int high_y) {
 	inserts the node v into the quad_tree q. 
 	if the insertion is success full returns true
 */
+omp_lock_t writelock;
+//pthread_spinlock_t splock;
 
 bool insert(struct quad_tree* q, struct node* v) {  // re work to deal with x max being /2 at all times
 	// if the size is one the bottom of the tree has been reached add the point there.
@@ -102,8 +106,11 @@ bool insert(struct quad_tree* q, struct node* v) {  // re work to deal with x ma
 			printf("colishion, i need a bucket dady.... %ld\n", q->value->x);
 			return false;
 			}
-			
+		//pthread_spin_lock(&splock);
+		omp_set_lock(&writelock);
 		q->value = v;
+		omp_unset_lock(&writelock);
+		// pthread_spin_unlock(&splock);
 		return true;
 	}
 	//printf("hold m dick\n");
@@ -288,11 +295,11 @@ void main() {
 	nodesInTree = (struct node_list*) malloc(sizeof(struct node_list));
 	double start, finish, elapsed;
 	
-	Q = readInData("results.txt", Q); 
-	//Q = readInData("test.txt", Q);
+	//Q = readInData("results.txt", Q); 
+	Q = readInData("test.txt", Q);
 	set_up(Q);
 	GET_TIME(start);
-	for (int i = 0; i < 2; ++i){
+	for (int i = 0; i < 5; ++i){
 		movement(Q);
 		printf("it worked?\n");
 	}
@@ -392,14 +399,16 @@ void movement(struct quad_tree* q){
 	struct quad_tree *hold_tree = init_quadTree(-536870911, 536870912, -536870911, 536870912);
 	int j = 0;
 
+	omp_init_lock(&writelock);// lock to provent over writhing data
+
 	// calculations are parallelised
-	#pragma omp parallel for num_threads(6) // this valuse can be modified inorder to increase treads**************************
+	#pragma omp parallel for num_threads(4) // this valuse can be modified inorder to increase treads**************************
 	for (int i  = 0; i < nodesInTree->num_nodes; ++i){
 		printf("%d\n",i);
 		struct node *hold = nodesInTree->node_info[i]; 
 		struct node *hold1 = (struct node*) malloc(sizeof(struct node));
 
-		if(hold->mass != 0){ // error check
+		//if(hold->mass != 0){ // error check
 			hold1->mass = hold->mass; // set ne nodes ma
 			double x_node_force;
 			double y_node_force;
@@ -430,7 +439,7 @@ void movement(struct quad_tree* q){
 				hold_list->num_nodes = j + 1;
 				++j;
 			}				
-		}
+		//}
 		
 	}
 	
@@ -443,6 +452,7 @@ void movement(struct quad_tree* q){
 	nodesInTree = hold_list;
 	q = hold_tree;
 	set_up(q);
+	omp_destroy_lock(&writelock);
 	return;
 }
 
